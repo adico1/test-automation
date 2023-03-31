@@ -51,7 +51,7 @@ if [ "$REPO_EXISTS" -ne 0 ]; then
 fi
 
 # Create repository on GitHub
-gh repo create "$REPO_NAME" --public --description "$REPO_DESC" --yes
+gh repo create "$REPO_NAME" --public --description "$REPO_DESC" --confirm
 
 # Add remote repository and push changes
 REMOTE_URL=$(gh repo view "$REPO_NAME" --json clone_url | jq -r ".clone_url")
