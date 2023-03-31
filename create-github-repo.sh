@@ -57,6 +57,6 @@ gh repo create "$GITHUB_USERNAME/$REPO_NAME" --description="$REPO_DESCRIPTION" -
 
 # Add the GitHub repository as a remote and push the local Git repository to the remote
 git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
-git push -u origin master
+git push -u origin main
 
 echo "${SUCCESS_EMOJI} Successfully created repository $REPO_NAME on GitHub!"
