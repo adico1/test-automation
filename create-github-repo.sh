@@ -82,4 +82,4 @@ git remote add origin "https://github.com/$REPO_OWNER/$REPO_NAME.git"
 git push -u origin "$(git branch --show-current)"
 
 # Print success message with link to repository
-echo -e "\n🎉 Successfully created repository $REPO_NAME on GitHub! You can view your new repository here: https://github.com/$REPO_OWNER/$RE
+echo -e "\n🎉 Successfully created repository $REPO_NAME on GitHub! You can view your new repository here: https://github.com/$REPO_OWNER/$REPO_NAME"
