@@ -1,64 +1,65 @@
 #!/bin/bash
 
-# Check if Bash is installed
-if ! command -v bash &> /dev/null; then
-    echo "😕 Bash is not installed on this system. Please install Bash and try again."
-    exit 1
+# Check for necessary dependencies
+if ! command -v bash >/dev/null || ! command -v jq >/dev/null || ! command -v gh >/dev/null; then
+  echo "🚨 Please install missing dependencies: bash, jq, and gh (GitHub CLI)." >&2
+  echo "💻 For example, run 'brew install bash jq gh'." >&2
+  exit 1
 fi
 
-# Check for dependencies
-if ! command -v gh &> /dev/null; then
-    echo "😕 The GitHub CLI (gh) is not installed on this system. Please install it and try again."
-    echo "   See https://cli.github.com/manual/installation for instructions."
-    exit 1
+# Check for gh version 2.25.1
+GH_VERSION=$(gh --version | awk '{print $3}')
+if [[ $GH_VERSION != "2.25.1" ]]; then
+  echo "🚨 Please install gh version 2.25.1 from https://github.com/cli/cli/releases/tag/v2.25.1." >&2
+  exit 1
 fi
 
-if ! command -v jq &> /dev/null; then
-    echo "😕 The jq command is not installed on this system. Please install it and try again."
-    echo "   For example, on macOS, you can install jq with Homebrew: brew install jq"
-    exit 1
-fi
+# Get GitHub username from gh config
+GITHUB_USER=$(gh config get -h github.com user)
 
-# Get the GitHub username
-GITHUB_USERNAME=$(gh config get -h github.com user)
-
-# Determine the project directory and package information
-if [ -z "$1" ]; then
-    PROJECT_DIR="."
+# Get repository name and description from package.json (if present) or prompt user for input
+if [[ -n $1 ]]; then
+  if [[ -f "$1/package.json" ]]; then
+    REPO_NAME=$(jq -r '.name' "$1/package.json")
+    REPO_DESC=$(jq -r '.description' "$1/package.json")
+  else
+    REPO_NAME="$1"
+    read -p "Enter repository description (leave blank for none): " REPO_DESC
+  fi
 else
-    PROJECT_DIR="$1"
+  if [[ -f "package.json" ]]; then
+    REPO_NAME=$(jq -r '.name' package.json)
+    REPO_DESC=$(jq -r '.description' package.json)
+  else
+    read -p "Enter repository name: " REPO_NAME
+    read -p "Enter repository description (leave blank for none): " REPO_DESC
+  fi
 fi
 
-if [ -f "$PROJECT_DIR/package.json" ]; then
-    REPO_NAME=$(jq -r '.name' "$PROJECT_DIR/package.json")
-    REPO_DESCRIPTION=$(jq -r '.description' "$PROJECT_DIR/package.json")
+# Prompt user to confirm repository creation
+read -p "Create new repository '$GITHUB_USER/$REPO_NAME' with description '$REPO_DESC'? (y/n): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  # Create repository with gh CLI
+  gh repo create "$GITHUB_USER/$REPO_NAME" --description "$REPO_DESC" --public || exit 1
+
+  # Initialize Git repository in project path (if present) or current directory
+  if [[ -n $1 ]]; then
+    cd "$1" || exit 1
+  fi
+  git init || exit 1
+
+  # Add all files to Git and make initial commit
+  git add .
+  git commit -m "🎉 Initial commit"
+  git branch -M main || exit 1
+
+  # Push to remote repository
+  git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git" || exit 1
+  git push -u origin main || exit 1
+
+  # Display success message
+  echo "🎉 Successfully created repository $GITHUB_USER/$REPO_NAME on GitHub!"
 else
-    echo "🤔 No package.json file was found in the project directory. Please provide a name and description for the repository."
-    read -p "Repository name (including the $GITHUB_USERNAME prefix, e.g. $GITHUB_USERNAME/my-repo): " REPO_NAME
-    read -p "Repository description: " REPO_DESCRIPTION
+  echo "👋 No repository created."
 fi
-
-# Create the repository
-echo "🚀 Creating repository $REPO_NAME on GitHub..."
-gh repo create "$REPO_NAME" --public --description "$REPO_DESCRIPTION"
-
-if [ $? -ne 0 ]; then
-    echo "❌ An error occurred while creating the repository. Please try again."
-    exit 1
-fi
-
-# Initialize a Git repository
-cd "$PROJECT_DIR" || exit 1
-git init
-
-# Add all files to the Git staging area
-git add .
-
-# Commit the changes with an emoji
-git commit -m "🎉 Initial commit" --no-verify
-
-# Push to the remote repository
-git remote add origin "https://github.com/$REPO_NAME.git"
-git push -u origin main
-
-echo "🎉 Successfully created repository $REPO_NAME on GitHub!"
