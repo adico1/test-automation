@@ -54,11 +54,11 @@ fi
 gh repo create "$REPO_NAME" --public --description "$REPO_DESC" --confirm
 
 # Add remote repository and push changes
-REMOTE_URL=$(gh repo view "$REPO_NAME" --json clone_url | jq -r ".clone_url")
-git remote add origin "$REMOTE_URL"
+HTML_URL=$(gh repo view "$REPO_NAME" --json html_url | jq -r ".html_url")
+git remote add origin "$HTML_URL"
 git add .
 git commit -m "${ROCKET} Initial commit"
 git push -u origin main
 
 # Display success message
-echo "${THUMBS_UP} Repository created successfully at $REMOTE_URL"
+echo "${THUMBS_UP} Repository created successfully at $HTML_URL"
