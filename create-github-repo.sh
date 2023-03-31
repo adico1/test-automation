@@ -51,10 +51,10 @@ if [ "$REPO_EXISTS" -ne 0 ]; then
 fi
 
 # Create repository on GitHub
-gh repo create "$REPO_NAME" --public --description "$REPO_DESC" --confirm
+gh repo create "$REPO_NAME" --public --description "$REPO_DESC" --yes
 
 # Add remote repository and push changes
-REMOTE_URL=$(gh repo view "$REPO_NAME" --json ssh_url | jq -r ".ssh_url")
+REMOTE_URL=$(gh repo view "$REPO_NAME" --json clone_url | jq -r ".clone_url")
 git remote add origin "$REMOTE_URL"
 git add .
 git commit -m "${ROCKET} Initial commit"
