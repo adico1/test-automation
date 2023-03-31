@@ -77,7 +77,7 @@ git commit -m "🎉 Initial commit"
 
 # Create the new repository on GitHub using the GitHub CLI
 github_username=$(gh config get -h github.com user)
-gh repo create "$repo_name" --description "$repo_description" --public --remote "https://github.com/$github_username/$repo_name.git" || { echo "❌ Failed to create repository $repo_name on GitHub."; exit 1; }
+gh repo create "$github_username/$repo_name" --description "$repo_description" --public || { echo "❌ Failed to create repository $repo_name on GitHub."; exit 1; }
 
 # Push the initial commit to the main branch
 git remote add origin "https://github.com/$github_username/$repo_name.git"
