@@ -53,7 +53,7 @@ git add .
 git commit -m "${SUCCESS_EMOJI} Initial commit"
 
 # Create the new repository on GitHub
-gh repo create "$GITHUB_USERNAME/$REPO_NAME" --description="$REPO_DESCRIPTION" --public --enable-wiki --confirm
+gh repo create "$GITHUB_USERNAME/$REPO_NAME" --description="$REPO_DESCRIPTION" --public
 
 # Add the GitHub repository as a remote and push the local Git repository to the remote
 git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
