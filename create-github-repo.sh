@@ -1,67 +1,86 @@
 #!/bin/bash
 
-# Check for required dependencies
-if ! command -v gh &> /dev/null; then
-    echo "⚠️ The GitHub CLI (gh) is not installed. Please install it before running this script: https://cli.github.com/manual/installation"
-    exit 1
+# Check if user has Bash on their system
+if ! command -v bash &> /dev/null; then
+  echo "🚫 Bash is required to run this script. Please install Bash and try again."
+  exit
 fi
 
+# Check if the required dependencies exist and prompt the user to install any missing dependencies
+missing_dependencies=""
 if ! command -v jq &> /dev/null; then
-    echo "⚠️ The jq utility is not installed. Please install it before running this script."
-    exit 1
+  missing_dependencies+="jq "
 fi
 
-# Check if a project path was provided, otherwise use the current directory
-if [ -z "$1" ]; then
-    PROJECT_DIR="."
+if [ -n "$missing_dependencies" ]; then
+  echo "🔍 The following dependencies are missing: $missing_dependencies"
+  echo "💻 Please install them and try again."
+  echo "For example, on macOS, you can install them with Homebrew:"
+  echo "brew install $missing_dependencies"
+  exit
+fi
+
+# Check if the GitHub CLI is installed and prompt the user to install it if it's missing
+if ! command -v gh &> /dev/null; then
+  echo "🔍 The GitHub CLI is not installed on your system."
+  echo "💻 Please install it and try again."
+  echo "You can download the GitHub CLI from the following link:"
+  echo "https://cli.github.com/manual/installation"
+  exit
+fi
+
+# Define the default repository name and description
+if [ $# -eq 1 ]; then
+  project_path="$1"
+  if [ -f "$project_path/package.json" ]; then
+    repo_name=$(jq -r '.name' "$project_path/package.json")
+    repo_description=$(jq -r '.description' "$project_path/package.json")
+  else
+    echo "🤔 There is no package.json file in the provided project path."
+    echo "📝 Please enter the repository name and description manually:"
+    read -r -p "Repository name: " repo_name
+    read -r -p "Repository description (optional): " repo_description
+  fi
 else
-    PROJECT_DIR="$1"
+  repo_name=$(jq -r '.name' package.json)
+  repo_description=$(jq -r '.description' package.json)
 fi
 
-# Check if package.json exists in the project directory
-if [ ! -f "$PROJECT_DIR/package.json" ]; then
-    echo "❌ package.json not found in $PROJECT_DIR. Please provide a repository name and description."
-    read -p "Enter repository name: " REPO_NAME
-    read -p "Enter repository description: " REPO_DESC
+if [ -z "$repo_name" ]; then
+  echo "🤔 The package.json file does not contain a valid name property."
+  echo "📝 Please enter the repository name manually:"
+  read -r -p "Repository name: " repo_name
+fi
+
+if [ -z "$repo_description" ]; then
+  echo "📝 Please enter the repository description (optional):"
+  read -r repo_description
+fi
+
+# Initialize a Git repository
+if [ -n "$project_path" ]; then
+  if [ ! -d "$project_path" ]; then
+    echo "🤔 The provided project path does not exist."
+    echo "📝 Initializing a Git repository in the current directory instead."
+    git init
+  else
+    cd "$project_path" || exit
+    git init
+  fi
 else
-    # Extract repository name and description from package.json
-    REPO_NAME=$(jq -r '.name' "$PROJECT_DIR/package.json")
-    REPO_DESC=$(jq -r '.description' "$PROJECT_DIR/package.json")
-
-    # If package.json does not have a name field, prompt the user for a repository name
-    if [ "$REPO_NAME" = "null" ]; then
-        echo "❌ package.json in $PROJECT_DIR does not have a name field. Please provide a repository name."
-        read -p "Enter repository name: " REPO_NAME
-    fi
-
-    # If package.json does not have a description field, prompt the user for a repository description
-    if [ "$REPO_DESC" = "null" ]; then
-        echo "⚠️ package.json in $PROJECT_DIR does not have a description field. Please provide a repository description."
-        read -p "Enter repository description: " REPO_DESC
-    fi
+  git init
 fi
 
-# Check if repository name is available on GitHub
-if gh repo view "$REPO_NAME" > /dev/null 2>&1; then
-    echo "❌ Repository name $REPO_NAME is already taken on GitHub. Please choose a different name."
-    exit 1
-fi
+# Add all files to Git staging area and make the initial commit
+git add .
+git commit -m "🎉 Initial commit"
 
-# Create repository on GitHub
-echo "🚀 Creating repository $REPO_NAME on GitHub..."
-gh repo create "$REPO_NAME" --public --description "$REPO_DESC" > /dev/null
+# Create the new repository on GitHub using the GitHub CLI
+github_username=$(gh config get -h github.com user)
+gh repo create "$repo_name" --description "$repo_description" --public --remote-url "https://github.com/$github_username/$repo_name.git" || { echo "❌ Failed to create repository $repo_name on GitHub."; exit 1; }
 
-# Initialize Git repository and make initial commit
-echo "🌱 Initializing Git repository and making initial commit..."
-cd "$PROJECT_DIR"
-git init > /dev/null
-git add . > /dev/null
-git commit -m "🎉 Initial commit" > /dev/null
+# Push the initial commit to the main branch
+git remote add origin "https://github.com/$github_username/$repo_name.git"
+git push -u origin main
 
-# Push to remote repository on GitHub
-echo "🚀 Pushing initial commit to remote repository on GitHub..."
-git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git" > /dev/null
-git push -u origin main > /dev/null
-
-# Show success message
-echo "🎉 Successfully created repository $REPO_NAME on GitHub!"
+# Output
