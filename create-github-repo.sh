@@ -1,65 +1,85 @@
 #!/bin/bash
 
-# Check for necessary dependencies
-if ! command -v bash >/dev/null || ! command -v jq >/dev/null || ! command -v gh >/dev/null; then
-  echo "🚨 Please install missing dependencies: bash, jq, and gh (GitHub CLI)." >&2
-  echo "💻 For example, run 'brew install bash jq gh'." >&2
+# Function to print an error message and exit with an error code
+function error {
+  echo -e "\033[31mERROR: $1\033[0m"
   exit 1
-fi
+}
 
-# Check for gh version 2.25.1
-GH_VERSION=$(gh --version | awk '{print $3}')
-if [[ $GH_VERSION != "2.25.1" ]]; then
-  echo "🚨 Please install gh version 2.25.1 from https://github.com/cli/cli/releases/tag/v2.25.1." >&2
-  exit 1
-fi
+# Check if necessary dependencies are installed
+command -v jq > /dev/null || error "jq is not installed. Please install it using your package manager."
+command -v git > /dev/null || error "git is not installed. Please install it using your package manager."
+command -v gh > /dev/null || error "gh is not installed. Please install it from https://github.com/cli/cli/releases/tag/v2.25.1"
 
-# Get GitHub username from gh config
+# Get the GitHub username
 GITHUB_USER=$(gh config get -h github.com user)
 
-# Get repository name and description from package.json (if present) or prompt user for input
+# Parse arguments
 if [[ -n $1 ]]; then
   if [[ -f "$1/package.json" ]]; then
     REPO_NAME=$(jq -r '.name' "$1/package.json")
-    REPO_DESC=$(jq -r '.description' "$1/package.json")
+    REPO_DESCRIPTION=$(jq -r '.description' "$1/package.json")
   else
-    REPO_NAME="$1"
-    read -p "Enter repository description (leave blank for none): " REPO_DESC
+    REPO_NAME=$2
+    REPO_DESCRIPTION=$3
   fi
 else
   if [[ -f "package.json" ]]; then
     REPO_NAME=$(jq -r '.name' package.json)
-    REPO_DESC=$(jq -r '.description' package.json)
+    REPO_DESCRIPTION=$(jq -r '.description' package.json)
   else
     read -p "Enter repository name: " REPO_NAME
-    read -p "Enter repository description (leave blank for none): " REPO_DESC
+    read -p "Enter repository description (optional): " REPO_DESCRIPTION
   fi
 fi
 
-# Prompt user to confirm repository creation
-read -p "Create new repository '$GITHUB_USER/$REPO_NAME' with description '$REPO_DESC'? (y/n): " -n 1 -r
+# Ask the user whether to create the repository under their personal account or an organization
+echo -e "\nWhere do you want to create the repository?"
+select account_type in "Personal" "Organization"; do
+  case $account_type in
+    "Personal")
+      REPO_OWNER=$GITHUB_USER
+      break
+      ;;
+    "Organization")
+      read -p "Enter the name of the organization: " REPO_OWNER
+      break
+      ;;
+    *)
+      echo "Invalid option. Please select 1 or 2."
+      ;;
+  esac
+done
+
+# Confirm with the user that they want to create the repository
+echo -e "\nYou are about to create the following repository:"
+echo "Name: $REPO_NAME"
+echo "Description: $REPO_DESCRIPTION"
+echo "Owner: $REPO_OWNER"
+read -p "Do you want to continue? (y/n) " -n 1 -r
 echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  # Create repository with gh CLI
-  gh repo create "$GITHUB_USER/$REPO_NAME" --description "$REPO_DESC" --public || exit 1
-
-  # Initialize Git repository in project path (if present) or current directory
-  if [[ -n $1 ]]; then
-    cd "$1" || exit 1
-  fi
-  git init || exit 1
-
-  # Add all files to Git and make initial commit
-  git add .
-  git commit -m "🎉 Initial commit"
-  git branch -M main || exit 1
-
-  # Push to remote repository
-  git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git" || exit 1
-  git push -u origin main || exit 1
-
-  # Display success message
-  echo "🎉 Successfully created repository $GITHUB_USER/$REPO_NAME on GitHub!"
-else
-  echo "👋 No repository created."
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo "Aborted."
+  exit 0
 fi
+
+# Create the repository
+echo -e "\nCreating repository...\n"
+gh repo create "$REPO_OWNER/$REPO_NAME" --public || error "Failed to create repository. Please check that the repository name is valid and that you have permission to create repositories under the specified owner."
+
+# Initialize Git and push changes
+if [[ -n $1 ]]; then
+  if [[ -d "$1/.git" ]]; then
+    cd "$1"
+  else
+    cd "$(dirname "$1")"
+  fi
+fi
+git init
+git add .
+git commit -m ":tada: Initial commit"
+git remote add origin "https://github.com/$REPO_OWNER/$REPO_NAME.git"
+git push -u origin "$(git branch --show-current)"
+
+# Print success message with link to repository
+echo -e "\n🎉 Successfully created repository $REPO_NAME on GitHub! You can view your new repository here: https://github.com/$REPO_OWNER/$RE
