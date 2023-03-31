@@ -82,7 +82,7 @@ function check_logged_in {
 function check_initialized_git {
   if [[ $INITIALIZED_GIT == "" ]]; then
     if [[ -d "$PROJECT_PATH" ]]; then
-      GIT_COMMAND="cd $PROJECT_PATH && git"
+      GIT_COMMAND="cd '$PROJECT_PATH' && git"
       echo "✅ Initialized git in $PROJECT_PATH"
     else
       GIT_COMMAND="git"
@@ -203,20 +203,13 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 
   # Initialize local git repository
   if [[ $INITIALIZED_REPO == "" ]]; then
-    if ! $GIT_COMMAND rev-parse --git-dir >/dev/null 2>&1; then
-      $GIT_COMMAND init
-      echo "✅ Initialized local git repository."
+    if $GIT_COMMAND rev-parse --git-dir >/dev/null 2>&1; then
+        echo "✅ Local git repository already initialized."
     else
-      read -rp "❗️ Local git repository already exists. Do you want to overwrite it? (y/n) " -n 1
-      echo ""
-      if [[ $REPLY =~ ^[Yy]$ ]]; then
         $GIT_COMMAND init
         echo "✅ Initialized local git repository."
-      else
-        echo "❌ Local git repository already exists. Aborting."
-        exit 1
-      fi
     fi
+
     $GIT_COMMAND add .
     $GIT_COMMAND commit -m "🎉 Initial commit"
     $GIT_COMMAND push -u origin "$BRANCH_NAME"
