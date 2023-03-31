@@ -210,6 +210,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "✅ Initialized local git repository."
     fi
 
+    $GIT_COMMAND remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git"
     $GIT_COMMAND add .
     $GIT_COMMAND commit -m "🎉 Initial commit"
     $GIT_COMMAND push -u origin "$BRANCH_NAME"
