@@ -1,0 +1,39 @@
+Requirement:
+
+Create a shell script create-github-repo.sh that automates the process of creating a new repository on GitHub. The script should run on macOS and avoid using common system variable names for its own variables to prevent conflicts or unexpected behavior.
+
+Functionality:
+
+The script should use the package.json file in the current directory to obtain the repository name and description. If a project path is provided, the script should use the package.json file in that directory to obtain the repository name and description.
+
+If a project does not have a package.json file, the user can pass name and description arguments for the repository name and description. If the arguments are not supplied, the user will be prompted to enter them. The description can be empty.
+
+The script should check if the user has bash and the necessary dependencies like jq installed. If any dependencies are missing, the script should recommend how to install them and prompt the user to install any missing dependencies.
+
+The script should also check if the user has the gh CLI installed and prompt them to install it if it's missing. The script should not use the GitHub API and should use gh version 2.25.1 (2023-03-21) available at https://github.com/cli/cli/releases/tag/v2.25.1.
+
+In gh repo create, the GitHub repository name should include the GitHub username as a prefix, separated by a slash. Use the --public flag in the gh repo create command. The --remote-url and --confirm options should not be used in the gh repo create command.
+
+The repository should be created under a specific user's account, and the script should handle any errors that may occur during the gh repo create command and provide informative error messages for the user.
+
+When a project path is provided, the git command should be initialized in that folder for all following git actions. If the project path does not exist, the git command should be initialized in the current folder for all following git actions.
+
+The local project directory should be initialized as a Git repository, and local changes should be committed and pushed to the remote repository. The initial commit should be decorated with an emoji for clarity and user experience using the log.
+
+The script should push to branch main as it is currently GitHub's default created branch name.
+
+User interaction:
+
+The script should prompt the user to install any missing dependencies, enter name and description arguments (if applicable), and confirm that the user wants to create the repository.
+
+After successfully creating the repository, the script should display a message with emojis indicating that the repository was successfully created: "🎉 Successfully created repository $REPO_NAME on GitHub!"
+
+If any errors occur during the process, the script should display informative error messages to the user and exit gracefully.
+
+Notes:
+
+The script should use gh config get -h github.com user to get the GitHub username.
+
+Emojis should be used to decorate the process output for better status clarity and user experience.
+
+The script should be compatible with macOS and avoid using common system variable names to prevent conflicts or unexpected behavior.
