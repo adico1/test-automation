@@ -1,68 +1,64 @@
 #!/bin/bash
 
-# Check for dependencies
-if ! command -v gh &> /dev/null; then
-    echo "❌ Please install the GitHub CLI: https://cli.github.com/manual/installation"
-    exit 1
+# Define emojis
+ROCKET="🚀"
+SMILEY="😄"
+THUMBS_UP="👍"
+
+# Check if user is authenticated with GitHub
+if ! gh auth status > /dev/null; then
+  echo "${ROCKET} You need to log in to your GitHub account."
+  gh auth login
 fi
 
-if ! command -v jq &> /dev/null; then
-    echo "❌ Please install jq: https://stedolan.github.io/jq/download/"
-    exit 1
+# Check if necessary dependencies are installed
+if ! command -v jq > /dev/null; then
+  echo "${ROCKET} jq is required. Please install it and run this script again."
+  echo "You can install jq with Homebrew: 'brew install jq'"
+  exit 1
 fi
 
-# Set variables
-REPO_NAME=""
-DESCRIPTION=""
-USERNAME=$(gh auth status | jq -r '.user.login')
-TOKEN=$(gh auth status | jq -r '.token')
-PROJECT_PATH=$1
-PACKAGE_JSON="$PROJECT_PATH/package.json"
-DEFAULT_BRANCH="main"
-
-# Function to get user input
-get_input() {
-    read -p "$1: " VAR
-    while [ -z "$VAR" ]
-    do
-        read -p "$1: " VAR
-    done
-    echo "$VAR"
-}
-
-# Function to check if repository name is available on GitHub
-check_repo_name() {
-    if gh repo view "$REPO_NAME" > /dev/null 2>&1; then
-        echo "❌ Repository name '$REPO_NAME' already exists on GitHub. Please choose a different name."
-        exit 1
-    fi
-}
-
-# Check if package.json exists and extract repository name and description
-if [ -f "$PACKAGE_JSON" ]; then
-    REPO_NAME=$(jq -r '.name' "$PACKAGE_JSON")
-    DESCRIPTION=$(jq -r '.description' "$PACKAGE_JSON")
+# Get project path (if provided)
+if [ -z "$1" ]; then
+  PROJECT_PATH="."
+else
+  PROJECT_PATH="$1"
 fi
 
-# Get user input for repository name and description if they are not set from package.json
-if [ -z "$REPO_NAME" ]; then
-    REPO_NAME=$(get_input "Enter repository name")
-    check_repo_name
+# Initialize Git repository (if necessary)
+if [ ! -d "$PROJECT_PATH/.git" ]; then
+  git init "$PROJECT_PATH"
+  echo "${SMILEY} Initialized Git repository in $PROJECT_PATH"
 fi
 
-if [ -z "$DESCRIPTION" ]; then
-    DESCRIPTION=$(get_input "Enter repository description (optional)")
+# Read repository name and description from package.json (if available)
+if [ -f "$PROJECT_PATH/package.json" ]; then
+  REPO_NAME=$(jq -r '.name' "$PROJECT_PATH/package.json")
+  REPO_DESC=$(jq -r '.description' "$PROJECT_PATH/package.json")
+else
+  # Prompt user for repository name and description
+  echo "${ROCKET} Repository name and description not found in package.json"
+  read -p "Enter repository name: " REPO_NAME
+  read -p "Enter repository description (optional): " REPO_DESC
 fi
 
-# Create repository
-gh repo create "$USERNAME/$REPO_NAME" --description="$DESCRIPTION" --public --confirm
+# Check if repository name is available on GitHub
+USERNAME=$(gh config get -h github.com user)
+REPO_EXISTS=$(gh api --silent --paginate "/users/$USERNAME/repos" | jq -r ".[].name" | grep -cx "$REPO_NAME")
+if [ "$REPO_EXISTS" -ne 0 ]; then
+  echo "${ROCKET} The repository name '$REPO_NAME' already exists for user '$USERNAME'. Please choose a different name."
+  exit 1
+fi
 
-# Initialize Git repository, commit changes, and push to GitHub
-git init
+# Create repository on GitHub
+gh repo create "$REPO_NAME" --public --description "$REPO_DESC" --confirm
+
+# Add remote repository and push changes
+REMOTE_URL=$(gh repo view "$REPO_NAME" --json ssh_url | jq -r ".ssh_url")
+git remote add origin "$REMOTE_URL"
 git add .
-git commit -m "Initial commit"
-git remote add origin "https://github.com/$USERNAME/$REPO_NAME.git"
-git push -u origin "$DEFAULT_BRANCH"
+git commit -m "${ROCKET} Initial commit"
+git push -u origin main
 
-# Output success message
-echo "✅ Repository created: https://github.com/$USERNAME/$REPO_NAME"
+# Display success message
+echo "${THUMBS_UP} Repository created successfully at $REMOTE_URL"
