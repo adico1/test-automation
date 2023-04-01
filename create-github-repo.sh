@@ -100,39 +100,50 @@ else
 fi
 
 # Initialize Git repository
-if [ -z "$1" ]; then
-  GIT_DIR="./"
-else
-  GIT_DIR="$1/"
+# Check if the project directory is a Git repository
+echo "${ROCKET} Checking if project directory is a Git repository..."
+if [ -d "$PROJECT_PATH" ]; then
+  cd "$PROJECT_PATH"
 fi
-if [ -d "$GIT_DIR/.git" ]; then
-  echo "${PROMPT} $GIT_DIR is already a Git repository. Do you want to use the existing repository?"
+if [ -d ".git" ]; then
+  echo "${PROMPT} $PROJECT_PATH is already a Git repository. Do you want to use the existing repository?"
   select yn in "Yes" "No"; do
     case $yn in
       Yes )
-        echo "${ROCKET} Using existing Git repository at $GIT_DIR."
-        cd $GIT_DIR
+        echo "${ROCKET} Using existing Git repository at $PROJECT_PATH."
+        # Check if the Git repository has a remote
+        if git remote get-url origin > /dev/null 2>&1; then
+          echo "${STAR} Git remote already exists. Skipping remote setup."
+        else
+          echo "${ROCKET} Setting up Git remote..."
+          git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git"
+        fi
+        # Commit and push changes
         git add .
-        git commit -m "${LOG} Initial commit 🎉"
+        git commit -m "${PENCIL} Initial commit 🎉"
         git push -u origin main
         break;;
       No )
-        echo "${STAR} Initializing Git repository at $GIT_DIR..."
-        cd $GIT_DIR
+        echo "${ROCKET} Initializing new Git repository..."
         git init
         git add .
-        git commit -m "${LOG} Initial commit 🎉"
-        git remote add origin $REPO_URL
+        git commit -m "${PENCIL} Initial commit 🎉"
+        # Set up remote
+        echo "${ROCKET} Setting up Git remote..."
+        git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git"
         git push -u origin main
         break;;
     esac
   done
 else
-  echo "${STAR} Initializing Git repository at $GIT_DIR..."
-  cd $GIT_DIR
+  echo "${ROCKET} Initializing new Git repository..."
   git init
   git add .
-  git commit -m "${LOG} Initial commit 🎉"
-  git remote add origin $REPO_URL
+  git commit -m "${PENCIL} Initial commit 🎉"
+  # Set up remote
+  echo "${ROCKET} Setting up Git remote..."
+  git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git"
   git push -u origin main
 fi
+
+exit 0
