@@ -53,97 +53,58 @@ else
   fi
 fi
 
-# Check if the user is logged in to the gh CLI
-echo "${ROCKET} Checking if user is logged in to gh CLI..."
-if ! gh auth status > /dev/null 2>&1; then
-  echo "${PROMPT} User is not logged in to gh CLI. Please log in using the command: gh auth login"
-  read -p "Press enter to continue..."
-  if ! gh auth login; then
-    echo "${ERROR} Unable to log in to gh CLI. Please try again or check your credentials."
-    exit 1
-  fi
+# Set the GITHUB_USER variable
+GITHUB_USER=$(gh config get -h github.com user)
+
+# Check if user is logged in to gh CLI
+echo "Checking if user is logged in to gh CLI..."
+if ! gh auth status; then
+  echo "User is not logged in to gh CLI. Please log in using the command: gh auth login"
+  exit 1
 fi
 
-# Choose where to create the repository
-echo "${PROMPT} Where would you like to create the repository?"
+# Ask the user where to create the repository
+echo "Where would you like to create the repository?"
 echo "1) Under your personal account"
 echo "2) Under an organization"
-read REPLY
+read -p "#? " REPO_LOCATION
+
 # Create the repository
-if [ "$REPLY" = "1" ]; then
-  GH_CREATE_CMD="gh repo create $GITHUB_USER/$REPO_NAME -d \"$REPO_DESC\" --public"
+echo "Creating repository $REPO_NAME..."
+if [ "$REPO_LOCATION" = "1" ]; then
+  gh repo create "$GITHUB_USER/$REPO_NAME" --public
 else
-  echo "${PROMPT} Please enter the name of the organization:"
+  echo "Please enter the name of the organization:"
   read ORG_NAME
-  GH_CREATE_CMD="gh repo create $ORG_NAME/$REPO_NAME -d \"$REPO_DESC\" --public -p"
-fi
-echo "${ROCKET} Creating repository $REPO_NAME..."
-OUTPUT=$(eval "$GH_CREATE_CMD" 2>&1)
-if [[ $OUTPUT =~ "Invalid repository name" ]]; then
-  echo "${ERROR} Invalid repository name. Please choose a different name."
-  exit 1
-elif [[ $OUTPUT =~ "permission to create repository" ]]; then
-  echo "${ERROR} You do not have permission to create repositories in the selected account or organization. Please try again with a different account or organization, or ask an administrator to grant you permission."
-  exit 1
-elif [[ $OUTPUT =~ "requires authentication" ]]; then
-  echo "${ERROR} Authentication failed. Please check your credentials and try again."
-  exit 1
-elif [[ $OUTPUT =~ "Validation Failed" ]]; then
-  echo "${ERROR} An error occurred while creating the repository. Please check the repository name and description for invalid characters, or try again later."
-  exit 1
-elif [[ $OUTPUT =~ "remote repository already exists" ]]; then
-  echo "${STAR} Remote repository already exists. Skipping repository creation."
-else
-  echo "${STAR} Repository $REPO_NAME created successfully!"
-  REPO_URL="https://github.com/$GITHUB_USER/$REPO_NAME"
-  echo "${STAR} You can view your new repository here: $REPO_URL"
+  gh repo create "$ORG_NAME/$REPO_NAME" --public
 fi
 
-# Initialize Git repository
-# Check if the project directory is a Git repository
-echo "${ROCKET} Checking if project directory is a Git repository..."
-if [ -d "$PROJECT_PATH" ]; then
-  cd "$PROJECT_PATH"
-fi
-if [ -d ".git" ]; then
-  echo "${PROMPT} $PROJECT_PATH is already a Git repository. Do you want to use the existing repository?"
-  select yn in "Yes" "No"; do
-    case $yn in
-      Yes )
-        echo "${ROCKET} Using existing Git repository at $PROJECT_PATH."
-        # Check if the Git repository has a remote
-        if git remote get-url origin > /dev/null 2>&1; then
-          echo "${STAR} Git remote already exists. Skipping remote setup."
-        else
-          echo "${ROCKET} Setting up Git remote..."
-          git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git"
-        fi
-        # Commit and push changes
-        git add .
-        git commit -m "${PENCIL} Initial commit 🎉"
-        git push -u origin main
-        break;;
-      No )
-        echo "${ROCKET} Initializing new Git repository..."
-        git init
-        git add .
-        git commit -m "${PENCIL} Initial commit 🎉"
-        # Set up remote
-        echo "${ROCKET} Setting up Git remote..."
-        git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git"
-        git push -u origin main
-        break;;
-    esac
-  done
-else
-  echo "${ROCKET} Initializing new Git repository..."
-  git init
-  git add .
-  git commit -m "${PENCIL} Initial commit 🎉"
-  # Set up remote
-  echo "${ROCKET} Setting up Git remote..."
+# Check if project directory is a Git repository
+echo "Checking if project directory is a Git repository..."
+if [ -d "./.git" ]; then
+  echo "This is already a Git repository."
+  read -p "Do you want to use the existing repository? (y/n) " USE_EXISTING_REPO
+  if [ "$USE_EXISTING_REPO" = "n" ]; then
+    exit 0
+  fi
   git remote add origin "https://github.com/$GITHUB_USER/$REPO_NAME.git"
-  git push -u origin main
+else
+  echo "This is not yet a Git repository."
+  read -p "Do you want to use this directory for Git? (y/n) " USE_EXISTING_REPO
+  if [ "$USE_EXISTING_REPO" = "n" ]; then
+    exit 0
+  fi
+  git init
 fi
+
+# Set up Git
+echo "Setting up Git..."
+git add .
+git commit -m "Initial commit 🎉"
+git push -u origin main
+
+# Finish
+echo "🎉 Successfully created repository $REPO_NAME on GitHub!"
+echo "You can view your new repository here: https://github.com/$GITHUB_USER/$REPO_NAME"
 
 exit 0
